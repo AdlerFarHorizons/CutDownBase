@@ -1,4 +1,5 @@
 #include <SoftwareSerial.h>
+#include <math.h>
 #include "TinyGPS.h"
 #include <SD.h>
 
@@ -47,6 +48,10 @@ int flightTime;
 double cutPercent = 0.9; //The percent of the flight that can go by before the BaseModule is
                       //authorized to cut the balloon.
 float maxAltitude = 0;
+double maxRadius = 0;
+double center_lat = 0;
+double center_lon = 0;
+const double RADIUS = 3959; //radius of the earth in miles
 boolean isCutdown = false; //boolean to store whether the BaseModule has sent a cutdown command or not
 
 void setup()
@@ -118,6 +123,7 @@ void waitForTimeStart()
         flightTime = Serial.parseInt();
         maxAltitude = Serial.parseFloat();
         maxAltitude /= 3.2804;
+        maxRadius = Serial.parseFloat();
         
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000);
@@ -128,6 +134,7 @@ void waitForTimeStart()
         Serial.print("Authorized to cutdown at (time): "); Serial.println(endTime);
         Serial.print("Authorized to cutdown at (altitude [meters]): "); Serial.println(maxAltitude);
         Serial.print("Authorized to cutdown at (altitude [feet]): "); Serial.println(maxAltitude*3.2804);
+        Serial.print("Authorized to cutdown at (radius [miles]): "); Serial.println(maxRadius);
         Serial.flush();
         digitalWrite(XBEE_SLEEP, HIGH);
       }
@@ -176,6 +183,7 @@ void loop()
         gps.get_position(&lat, &lon);
         long date, time, age;
         gps.get_datetime(&date, &time, &age);
+
         
         //Dr. Lou, these are the print statements that need to be converted into SD card prints. Also, the next if statement (with cutdown() )
         //will need to be changed in order to prevent the altitude check from accidentally cutting down the balloon. If you have any questions,
@@ -215,6 +223,14 @@ void loop()
           //cutdown(); // Actual cutdown by altitude is suppressed for now.
         }
         
+        double d = distanceBetweenTwoPoints(lat, lon, center_lat, center_lon);
+        
+        if (d > maxRadius)
+        {
+          Serial.println("Kutdown by max radius of flight.");
+          //cutdown(); suppressed for now
+        }
+        
         //put the xbee back to sleep
         digitalWrite(XBEE_SLEEP, HIGH); delay(1); 
         
@@ -225,6 +241,18 @@ void loop()
     delay(20);
   }
   delay(20);
+}
+
+double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lon2)
+{
+  double dLat = deg2rad(lat2-lat1);
+  double dLon = deg2rad(lon2-lon1);
+  double a = sin(dLat/2)*sin(dLat/2) +
+             cos(deg2rad(lat1))*cos(deg2rad(lat2)) *
+             sin(dLon/2)*sin(dLon/2);
+  double c = 2 * atan2(sqrt(a), sqrt(1-a));
+  double d_miles = RADIUS * c;
+  return d_miles;
 }
 
 void cutdown()
@@ -241,4 +269,9 @@ void cutdown()
   
   //put the xbee back to sleep
   digitalWrite(XBEE_SLEEP, HIGH); delay(1);
+}
+
+double deg2rad(double degree)
+{
+  return degree * (PI/180);
 }
