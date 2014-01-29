@@ -174,6 +174,8 @@ void loop()
         long alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
         long lat, lon;
         gps.get_position(&lat, &lon);
+        long date, time, age;
+        gps.get_datetime(&date, &time, &age);
         
         //Dr. Lou, these are the print statements that need to be converted into SD card prints. Also, the next if statement (with cutdown() )
         //will need to be changed in order to prevent the altitude check from accidentally cutting down the balloon. If you have any questions,
@@ -181,6 +183,7 @@ void loop()
         //print all of the data, tab delimited
         //Serial.print(alt); Serial.print("\t");
         delay(1);
+        Serial.print(time); Serial.print("\t");
         Serial.print(lat); Serial.print("\t");
         Serial.print(lon); Serial.print("\t");
         Serial.println(alt);
@@ -192,6 +195,7 @@ void loop()
           if (dataFile)
           {
             dataFile.print(millis()); dataFile.print("\t");
+            dataFile.print(time); dataFile.print("\t");
             dataFile.print(lat); dataFile.print("\t");
             dataFile.print(lon); dataFile.print("\t");
             dataFile.println(alt);
