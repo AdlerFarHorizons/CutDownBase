@@ -169,7 +169,7 @@ void loop()
         digitalWrite(XBEE_SLEEP, LOW); delay(1); //wake the xbee up
   
         //get data from the gps object
-        long alt = gps.altitude();
+        long alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
         long lat, lon;
         gps.get_position(&lat, &lon);
         
