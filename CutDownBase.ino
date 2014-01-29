@@ -47,6 +47,7 @@ int flightTime;
 double cutPercent = 0.9; //The percent of the flight that can go by before the BaseModule is
                       //authorized to cut the balloon.
 float maxAltitude = 0;
+boolean isCutdown = false; //boolean to store whether the BaseModule has sent a cutdown command or not
 
 void setup()
 {
@@ -145,8 +146,9 @@ void loop()
     delay(30000);
   }
   //if endTime has arrived
-  else if (millis() >= endTime) 
+  else if (millis() >= endTime && !isCutdown) 
   { 
+    isCutdown = true; //run only once
     if (isLogging)
     {
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
@@ -197,8 +199,9 @@ void loop()
            }
        }
         //check if altitude is greater than maximum altitude
-        if ((float)alt > (float)maxAltitude)
+        if ((float)alt > (float)maxAltitude && !isCutdown)
         {
+          isCutdown = true; //run only once
           File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
           if (dataFile)
           {
