@@ -128,6 +128,7 @@ void waitForTimeStart()
         Serial.print("Authorized to cutdown at (altitude [meters]): "); Serial.println(maxAltitude);
         Serial.print("Authorized to cutdown at (altitude [feet]): "); Serial.println(maxAltitude*3.2804);
         Serial.flush();
+        digitalWrite(XBEE_SLEEP, HIGH);
       }
     }
     delay(1);
