@@ -139,10 +139,9 @@ void waitForTimeStart()
 void loop() 
 {
   //if endTime has arrived
-  if (millis() >= endTime && !isCutdown) 
+  if (millis() >= endTime ) 
   { 
-    isCutdown = true; //run only once
-    if (isLogging)
+    if (!isCutdown && isLogging)
     {
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
@@ -150,6 +149,7 @@ void loop()
         dataFile.print( millis() ); dataFile.println("*** Remote Cutdown at time initiated ***");
         dataFile.close();
       }
+      isCutdown = true; // Run only once
     }
     cutdown();
   }
@@ -174,6 +174,7 @@ void loop()
         //print all of the data, tab delimited
         //Serial.print(alt); Serial.print("\t");
         delay(1);
+        Serial.print(millis()); Serial.print("\t");
         Serial.print(lat); Serial.print("\t");
         Serial.print(lon); Serial.print("\t");
         Serial.println(alt);
