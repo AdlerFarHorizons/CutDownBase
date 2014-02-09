@@ -153,9 +153,7 @@ void loop()
     }
     cutdown();
   }
-  //else if the timer has not gone off yet, check the GPS
-  else
-  {
+  //Check the GPS
     while (nss.available() > 0)
     {
       int c = nss.read();
@@ -213,7 +211,6 @@ void loop()
       }
     }
     delay(20);
-  }
   delay(20);
 }
 
