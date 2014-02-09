@@ -138,15 +138,8 @@ void waitForTimeStart()
 
 void loop() 
 {
-  //if it is less than 30 seconds before endTime but not after endTime
-  if (millis() >= endTime-30000 && millis() < endTime) 
-  {
-    //turn the xbee on
-    digitalWrite(XBEE_SLEEP, LOW);
-    delay(30000);
-  }
   //if endTime has arrived
-  else if (millis() >= endTime && !isCutdown) 
+  if (millis() >= endTime && !isCutdown) 
   { 
     isCutdown = true; //run only once
     if (isLogging)
