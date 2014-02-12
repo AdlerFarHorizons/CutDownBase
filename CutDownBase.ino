@@ -47,11 +47,11 @@ unsigned long endTime;
 int flightTime;
 double cutPercent = 0.9; //The percent of the flight that can go by before the BaseModule is
                       //authorized to cut the balloon.
-float maxAltitude = 0;
+double maxAltitude = 0;
 double maxRadius = 0;
 double center_lat = 0;
 double center_lon = 0;
-const double RADIUS = 3959; //radius of the earth in miles
+const double RADIUS = 3963.1676; //radius of the earth in miles
 boolean isCutdown = false; //boolean to store whether the BaseModule has sent a cutdown command or not
 
 void setup()
@@ -90,11 +90,12 @@ void setup()
       Serial.println("Base: File opened, logging enabled.");
       Serial.println("");
       isLogging = true;
-      dataFile.print("Max Flight Time: "); dataFile.println(flightTime);
-      dataFile.print("Current Time: "); dataFile.println(startTime);
+      dataFile.print("Max Flight Time (minutes): "); dataFile.println(flightTime);
+      dataFile.print("Current Time (millis): "); dataFile.println(startTime);
       dataFile.print("Authorized to cutdown at (time): "); dataFile.println(endTime);
       dataFile.print("Authorized to cutdown at (altitude [meters]): "); dataFile.println(maxAltitude);
-      dataFile.print("Authorized to cutdown at (altitude [feet]): "); dataFile.println(maxAltitude*3.2804);
+      dataFile.print("Authorized to cutdown at (altitude [feet]): "); dataFile.println(maxAltitude*3.2804); //convert to feet
+      dataFile.print("Authorized to cutdown at "); dataFile.print(maxRadius); dataFile.print(" miles from "); dataFile.print(center_lat); dataFile.print(", "); dataFile.println(center_lon);
       dataFile.close();
     } else
     {
@@ -122,19 +123,21 @@ void waitForTimeStart()
       {
         flightTime = Serial.parseInt();
         maxAltitude = Serial.parseFloat();
-        maxAltitude /= 3.2804;
+        maxAltitude /= 3.2804; //convert to meters
         maxRadius = Serial.parseFloat();
+        center_lat = Serial.parseFloat();
+        center_lon = Serial.parseFloat();
         
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000);
         timeReceived = true;
         Serial.println("Timer successfully started");
-        Serial.print("Max Flight Time: "); Serial.println(flightTime);
-        Serial.print("Current Time: "); Serial.println(startTime);
+        Serial.print("Max Flight Time (minutes): "); Serial.println(flightTime);
+        Serial.print("Current Time (millis): "); Serial.println(startTime);
         Serial.print("Authorized to cutdown at (time): "); Serial.println(endTime);
         Serial.print("Authorized to cutdown at (altitude [meters]): "); Serial.println(maxAltitude);
-        Serial.print("Authorized to cutdown at (altitude [feet]): "); Serial.println(maxAltitude*3.2804);
-        Serial.print("Authorized to cutdown at (radius [miles]): "); Serial.println(maxRadius);
+        Serial.print("Authorized to cutdown at (altitude [feet]): "); Serial.println(maxAltitude*3.2804); //convert to feet
+        Serial.print("Authorized to cutdown at "); Serial.print(maxRadius); Serial.print("miles from "); Serial.print(center_lat); Serial.print(", "); Serial.println(center_lon);
         Serial.flush();
         digitalWrite(XBEE_SLEEP, HIGH);
       }
@@ -148,7 +151,7 @@ void loop()
   //if endTime has arrived
   if (millis() >= endTime ) 
   { 
-    if (!isCutdown && isLogging)
+    if (!isCutdown && isLogging) //if logging is enabled, log some stuff
     {
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
@@ -172,20 +175,18 @@ void loop()
         long alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
         long lat, lon;
         gps.get_position(&lat, &lon);
-        long date, time, age;
+        double scaledLat = lat / pow(10,6); //divide by 10^6
+        double scaledLon = lon / pow(10,6); //divide by 10^6
+        unsigned long date, time, age;
         gps.get_datetime(&date, &time, &age);
 
-        
-        //Dr. Lou, these are the print statements that need to be converted into SD card prints. Also, the next if statement (with cutdown() )
-        //will need to be changed in order to prevent the altitude check from accidentally cutting down the balloon. If you have any questions,
-        //feel free to email us.
         //print all of the data, tab delimited
         //Serial.print(alt); Serial.print("\t");
         delay(1);
-        Serial.print(time); Serial.print("\t");
         Serial.print(millis()); Serial.print("\t");
-        Serial.print(lat); Serial.print("\t");
-        Serial.print(lon); Serial.print("\t");
+        Serial.print(time); Serial.print("\t");
+        Serial.print(scaledLat); Serial.print("\t");
+        Serial.print(scaledLon); Serial.print("\t");
         Serial.println(alt);
         Serial.flush();
         if ( isLogging )
@@ -196,16 +197,15 @@ void loop()
           {
             dataFile.print(millis()); dataFile.print("\t");
             dataFile.print(time); dataFile.print("\t");
-            dataFile.print(lat); dataFile.print("\t");
-            dataFile.print(lon); dataFile.print("\t");
+            dataFile.print(scaledLat); dataFile.print("\t");
+            dataFile.print(scaledLon); dataFile.print("\t");
             dataFile.println(alt);
             dataFile.close();
            }
        }
         //check if altitude is greater than maximum altitude
-        if ((float)alt > (float)maxAltitude && !isCutdown)
+        if ((double)alt > (double)maxAltitude && !isCutdown)
         {
-          isCutdown = true; //run only once
           File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
           if (dataFile)
           {
@@ -213,14 +213,16 @@ void loop()
             dataFile.close();
           }
           //cutdown(); // Actual cutdown by altitude is suppressed for now.
+          isCutdown = true; //run only once
         }
         
-        double d = distanceBetweenTwoPoints(lat, lon, center_lat, center_lon);
+        double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);
         
         if (d > maxRadius)
         {
-          Serial.println("Kutdown by max radius of flight.");
-          //cutdown(); suppressed for now
+          //Serial.println("Cutdown by max radius of flight.");
+          //cutdown(); // suppressed for now
+          isCutdown = true; //run only once
         }
         
         //put the xbee back to sleep
@@ -230,18 +232,19 @@ void loop()
         break;
       }
     }
-    delay(20);
-  delay(20);
+    delay(40);
 }
 
 double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lon2)
 {
   double dLat = deg2rad(lat2-lat1);
   double dLon = deg2rad(lon2-lon1);
-  double a = sin(dLat/2)*sin(dLat/2) +
-             cos(deg2rad(lat1))*cos(deg2rad(lat2)) *
-             sin(dLon/2)*sin(dLon/2);
-  double c = 2 * atan2(sqrt(a), sqrt(1-a));
+  double latOne = deg2rad(lat1);
+  double latTwo = deg2rad(lat2);
+  
+  double a = sin(dLat/2.0)*sin(dLat/2.0) +
+             sin(dLon/2.0)*sin(dLon/2.0) * cos(lat1)*cos(lat2);
+  double c = 2.0 * atan2(sqrt(a), sqrt(1-a));
   double d_miles = RADIUS * c;
   return d_miles;
 }
@@ -264,5 +267,5 @@ void cutdown()
 
 double deg2rad(double degree)
 {
-  return degree * (PI/180);
+  return degree * (PI/180.0);
 }
