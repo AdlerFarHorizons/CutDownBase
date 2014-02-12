@@ -145,18 +145,10 @@ void waitForTimeStart()
 
 void loop() 
 {
-  //if it is less than 30 seconds before endTime but not after endTime
-  if (millis() >= endTime-30000 && millis() < endTime) 
-  {
-    //turn the xbee on
-    digitalWrite(XBEE_SLEEP, LOW);
-    delay(30000);
-  }
   //if endTime has arrived
-  else if (millis() >= endTime && !isCutdown) 
+  if (millis() >= endTime ) 
   { 
-    isCutdown = true; //run only once
-    if (isLogging)
+    if (!isCutdown && isLogging)
     {
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
@@ -164,12 +156,11 @@ void loop()
         dataFile.print( millis() ); dataFile.println("*** Remote Cutdown at time initiated ***");
         dataFile.close();
       }
+      isCutdown = true; // Run only once
     }
     cutdown();
   }
-  //else if the timer has not gone off yet, check the GPS
-  else
-  {
+  //Check the GPS
     while (nss.available() > 0)
     {
       int c = nss.read();
@@ -192,6 +183,7 @@ void loop()
         //Serial.print(alt); Serial.print("\t");
         delay(1);
         Serial.print(time); Serial.print("\t");
+        Serial.print(millis()); Serial.print("\t");
         Serial.print(lat); Serial.print("\t");
         Serial.print(lon); Serial.print("\t");
         Serial.println(alt);
@@ -239,7 +231,6 @@ void loop()
       }
     }
     delay(20);
-  }
   delay(20);
 }
 
