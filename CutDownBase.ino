@@ -101,12 +101,12 @@ void setup()
       Serial.println("Base: File opened, logging enabled.");
       Serial.println("");
       isLogging = true;
-      dataFile.print("Max Flight Time (minutes): "); dataFile.println(flightTime);
-      dataFile.print("Current Time (millis): "); dataFile.println(startTime);
-      dataFile.print("Authorized to cutdown at (time): "); dataFile.println(endTime);
-      dataFile.print("Authorized to cutdown at (altitude [meters]): "); dataFile.println(maxAltitude);
-      dataFile.print("Authorized to cutdown at (altitude [feet]): "); dataFile.println(maxAltitude*3.2804); //convert to feet
-      dataFile.print("Authorized to cutdown at "); dataFile.print(maxRadius); dataFile.print(" miles from "); dataFile.print(center_lat); dataFile.print(", "); dataFile.println(center_lon);
+      dataFile.print("Max Flight Time (min): "); dataFile.println(flightTime);
+      dataFile.print("Current Time (ms): "); dataFile.println(startTime);
+      dataFile.print("Cutdown at (ms): "); dataFile.println(endTime);
+      dataFile.print("Cutdown at (altitude [m]): "); dataFile.println(maxAltitude);
+      dataFile.print("Cutdown at (altitude [ft]): "); dataFile.println(maxAltitude*3.2804); //convert to feet
+      dataFile.print("Cutdown at "); dataFile.print(maxRadius); dataFile.print(" mi from "); dataFile.print(center_lat); dataFile.print(", "); dataFile.println(center_lon);
       dataFile.close();
     } else
     {
@@ -142,13 +142,13 @@ void waitForTimeStart()
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000);
         timeReceived = true;
-        Serial.println("Timer successfully started");
-        Serial.print("Max Flight Time (minutes): "); Serial.println(flightTime);
-        Serial.print("Current Time (millis): "); Serial.println(startTime);
-        Serial.print("Authorized to cutdown at (time): "); Serial.println(endTime);
-        Serial.print("Authorized to cutdown at (altitude [meters]): "); Serial.println(maxAltitude);
-        Serial.print("Authorized to cutdown at (altitude [feet]): "); Serial.println(maxAltitude*3.2804); //convert to feet
-        Serial.print("Authorized to cutdown at "); Serial.print(maxRadius); Serial.print("miles from "); Serial.print(center_lat); Serial.print(", "); Serial.println(center_lon);
+        Serial.println("Timer started");
+        Serial.print("Max Flight Time (min): "); Serial.println(flightTime);
+        Serial.print("Current Time (ms): "); Serial.println(startTime);
+        Serial.print("Cutdown at (ms): "); Serial.println(endTime);
+        Serial.print("Cutdown at (altitude [m]): "); Serial.println(maxAltitude);
+        Serial.print("Cutdown at (altitude [ft]): "); Serial.println(maxAltitude*3.2804); //convert to feet
+        Serial.print("Cutdown at "); Serial.print(maxRadius); Serial.print(" mi from "); Serial.print(center_lat); Serial.print(", "); Serial.println(center_lon);
         Serial.flush();
         digitalWrite(XBEE_SLEEP, HIGH);
       }
