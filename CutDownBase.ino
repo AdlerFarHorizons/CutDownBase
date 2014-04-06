@@ -63,7 +63,9 @@ double maxRadius = 0;
 double center_lat = 0;
 double center_lon = 0;
 const double RADIUS = 3963.1676; //radius of the earth in miles
-boolean isCutdown = false; //boolean to store whether the BaseModule has sent a cutdown command or not
+boolean isTimeCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
+boolean isAltCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
+boolean isRangeCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
 
 void setup()
 {
@@ -162,7 +164,7 @@ void loop()
   //if endTime has arrived
   if (millis() >= endTime ) 
   { 
-    if (!isCutdown && isLogging) //if logging is enabled, log some stuff
+    if (!isTimeCutdown && isLogging) //if logging is enabled, log some stuff
     {
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
@@ -170,7 +172,7 @@ void loop()
         dataFile.print( millis() ); dataFile.println("*** Remote Cutdown at time initiated ***");
         dataFile.close();
       }
-      isCutdown = true; // Run only once
+      isTimeCutdown = true; // Run only once
     }
     cutdown();
   }
@@ -215,27 +217,36 @@ void loop()
            }
        }
         //check if altitude is greater than maximum altitude
-        if ((double)alt > (double)maxAltitude && !isCutdown)
+        if ((double)alt > (double)maxAltitude)
         {
-          File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
-          if (dataFile)
+          if (!isAltCutdown && isLogging)
           {
-            dataFile.print( millis() ); dataFile.println("*** Remote cutdown at altitude initiated ***");
-            dataFile.close();
+            File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+            if (dataFile)
+            {
+              dataFile.print( millis() ); dataFile.println("*** Remote cutdown at altitude initiated ***");
+              dataFile.close();
+            }
+            isAltCutdown = true; //run only once
           }
-          //cutdown(); // Actual cutdown by altitude is suppressed for now.
-          isCutdown = true; //run only once
+          cutdown();
         }
-        
         double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);
         
         if (d > maxRadius)
         {
-          //Serial.println("Cutdown by max radius of flight.");
-          //cutdown(); // suppressed for now
-          isCutdown = true; //run only once
+          if (!isRangeCutdown && isLogging)
+          {
+            File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+            if (dataFile)
+            {
+              dataFile.print( millis() ); dataFile.println("*** Remote cutdown at range initiated ***");
+              dataFile.close();
+            }
+            isRangeCutdown = true; //run only once
+          }
+          cutdown(); // Actual cutdown by altitude is suppressed for now.
         }
-        
         //put the xbee back to sleep
         digitalWrite(XBEE_SLEEP, HIGH); delay(1); 
         
