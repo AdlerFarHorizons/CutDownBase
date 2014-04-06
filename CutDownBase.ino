@@ -31,6 +31,17 @@
   CS pin 10 must be programmed as an output.
   
   So, software serial can be assigned to 5 and 6 safely.
+  
+  TESTING:
+  Can be tested without remote cutdown and remote programmer units:
+  1. Remove XBee from XBee shield so Arduino USB I/O will work
+  2. Provide input via a single monitor line entry emulating the
+     remote inputs, for example:
+     X90,100000,300,41.1000322,-87.9167100
+     This yields: Remote cutdown time (deadman): 90 minutes
+                  Cutdown altitude: 100,000 feet
+                  Cutdown range: 300 miles
+                  Launch Lat/Lon: Koerner Aviation
 */
 
 #define XBEE_SLEEP 7
@@ -57,7 +68,7 @@ boolean isCutdown = false; //boolean to store whether the BaseModule has sent a 
 void setup()
 {
   Serial.begin(9600);
-  Serial.println(maxAltitude);
+  Serial.println(freeRam());
   Serial.flush();
   nss.begin(4800);
   nss.flush();
@@ -268,4 +279,11 @@ void cutdown()
 double deg2rad(double degree)
 {
   return degree * (PI/180.0);
+}
+
+int freeRam() 
+{
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
 }
