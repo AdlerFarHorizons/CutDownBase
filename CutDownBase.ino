@@ -66,6 +66,7 @@ const double RADIUS = 3963.1676; //radius of the earth in miles
 boolean isTimeCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
 boolean isAltCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
 boolean isRangeCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
+boolean gpsValid = false;
 
 int c;
 long alt, lat, lon;
@@ -180,7 +181,7 @@ void loop()
   }
   
   //check if altitude is greater than maximum altitude
-  if ( (double)alt > (double)maxAltitude )
+  if ( gpsValid && ( (double)alt > (double)maxAltitude ) )
   {
     if (!isAltCutdown && isLogging)
     {
@@ -196,7 +197,7 @@ void loop()
   }
   
   double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
-  if ( d > maxRadius )
+  if ( gpsValid && ( d > maxRadius ) )
   {
     if (!isRangeCutdown && isLogging)
     {
@@ -211,6 +212,7 @@ void loop()
     }
   }
   //Check the GPS
+  gpsValid = false;
   while (nss.available() > 0)
   {
     c = nss.read();
@@ -224,7 +226,8 @@ void loop()
       scaledLat = lat / pow(10,6); //divide by 10^6
       scaledLon = lon / pow(10,6); //divide by 10^6
       gps.get_datetime(&date, &time, &age);
-
+      gpsValid = age < 500;
+      
       //print all of the data, tab delimited
       delay(1);
       Serial.print(millis()); Serial.print("\t");
@@ -237,7 +240,7 @@ void loop()
       Serial.flush();
       
       // Log data to file if enabled and GPS is valid
-      if ( isLogging )
+      if ( isLogging && gpsValid )
       {
         File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
         
