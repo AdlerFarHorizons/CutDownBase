@@ -67,6 +67,12 @@ boolean isTimeCutdown = false; //boolean to store whether the BaseModule has sen
 boolean isAltCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
 boolean isRangeCutdown = false; //boolean to store whether the BaseModule has sent a timer cutdown command or not
 
+int c;
+long alt, lat, lon;
+double scaledLat, scaledLon;
+unsigned long date, time, age;
+unsigned long loopStart;
+
 void setup()
 {
   Serial.begin(9600);
@@ -155,7 +161,9 @@ void waitForTimeStart()
 
 void loop() 
 {
-  //if endTime has arrived
+  loopStart = millis(); // Used for optional loop time reporting.
+
+  // Check if endTime has arrived
   if (millis() >= endTime ) 
   { 
     if (!isTimeCutdown && isLogging) //if logging is enabled, log some stuff
@@ -166,94 +174,94 @@ void loop()
         dataFile.print( millis() ); dataFile.println(" *** Time cutdown ***");
         dataFile.close();
       }
+      cutdown();
       isTimeCutdown = true; // Run only once
     }
-    cutdown();
+  }
+  
+  //check if altitude is greater than maximum altitude
+  if ( (double)alt > (double)maxAltitude )
+  {
+    if (!isAltCutdown && isLogging)
+    {
+      File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+      if (dataFile)
+      {
+        dataFile.print( millis() ); dataFile.println(" *** Altitude cutdown ***");
+        dataFile.close();
+      }
+      cutdown(); //Suppressed for now
+      isAltCutdown = true; //run only once
+    }
+  }
+  
+  double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
+  if ( d > maxRadius )
+  {
+    if (!isRangeCutdown && isLogging)
+    {
+      File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+      if (dataFile)
+      {
+        dataFile.print( millis() ); dataFile.println(" *** Range cutdown ***");
+        dataFile.close();
+      }
+      cutdown(); // Actual cutdown by altitude is suppressed for now.
+      isRangeCutdown = true; //run only once
+    }
   }
   //Check the GPS
-    while (nss.available() > 0)
+  while (nss.available() > 0)
+  {
+    c = nss.read();
+    if (gps.encode(c))
     {
-      int c = nss.read();
-      if (gps.encode(c))
-      {
-        digitalWrite(XBEE_SLEEP, LOW); delay(1); //wake the xbee up
-  
-        //get data from the gps object
-        long alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
-        // Uncomment to give simulated altitude.
-        //alt = 300 + ( 6*(millis()-startTime) )/1000;
-        long lat, lon;
-        gps.get_position(&lat, &lon);
-        double scaledLat = lat / pow(10,6); //divide by 10^6
-        double scaledLon = lon / pow(10,6); //divide by 10^6
-        unsigned long date, time, age;
-        gps.get_datetime(&date, &time, &age);
+      //get data from the gps object
+      alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
+      // Uncomment to give simulated altitude.
+      //alt = 300 + ( 6*(millis()-startTime) )/1000;
+      gps.get_position(&lat, &lon);
+      scaledLat = lat / pow(10,6); //divide by 10^6
+      scaledLon = lon / pow(10,6); //divide by 10^6
+      gps.get_datetime(&date, &time, &age);
 
-        //print all of the data, tab delimited
-        //Serial.print(alt); Serial.print("\t");
-        delay(1);
-        Serial.print(millis()); Serial.print("\t");
-        Serial.print(date); Serial.print("\t");
-        Serial.print(time); Serial.print("\t");
-        Serial.print(scaledLat,6); Serial.print("\t");
-        Serial.print(scaledLon,6); Serial.print("\t");
-        Serial.print(alt);Serial.print("\t");
-        Serial.println(freeRam());
-        Serial.flush();
-        if ( isLogging )
-        {
-          File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
-          
-          if (dataFile)
-          {
-            dataFile.print(millis()); dataFile.print("\t");
-            dataFile.print(date); dataFile.print("\t");
-            dataFile.print(time); dataFile.print("\t");
-            dataFile.print(scaledLat,6); dataFile.print("\t");
-            dataFile.print(scaledLon,6); dataFile.print("\t");
-            dataFile.println(alt);
-            dataFile.close();
-           }
-       }
-        //check if altitude is greater than maximum altitude
-        if ((double)alt > (double)maxAltitude)
-        {
-          if (!isAltCutdown && isLogging)
-          {
-            File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
-            if (dataFile)
-            {
-              dataFile.print( millis() ); dataFile.println(" *** Altitude cutdown ***");
-              dataFile.close();
-            }
-            isAltCutdown = true; //run only once
-          }
-          //cutdown(); Suppressed for now
-        }
-        double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);
+      //print all of the data, tab delimited
+      delay(1);
+      Serial.print(millis()); Serial.print("\t");
+      Serial.print(date); Serial.print("\t");
+      Serial.print(time); Serial.print("\t");
+      Serial.print(scaledLat,6); Serial.print("\t");
+      Serial.print(scaledLon,6); Serial.print("\t");
+      Serial.print(alt);Serial.print("\t");
+      Serial.println(freeRam());
+      Serial.flush();
+      
+      // Log data to file if enabled and GPS is valid
+      if ( isLogging )
+      {
+        File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
         
-        if (d > maxRadius)
+        if (dataFile)
         {
-          if (!isRangeCutdown && isLogging)
-          {
-            File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
-            if (dataFile)
-            {
-              dataFile.print( millis() ); dataFile.println(" *** Range cutdown ***");
-              dataFile.close();
-            }
-            isRangeCutdown = true; //run only once
-          }
-          //cutdown(); // Actual cutdown by altitude is suppressed for now.
-        }
-        //put the xbee back to sleep
-        digitalWrite(XBEE_SLEEP, HIGH); delay(1); 
-        
-        //break out of the GPS's while loop so the timer can be checked again
-        break;
+          dataFile.print(millis()); dataFile.print("\t");
+          dataFile.print(date); dataFile.print("\t");
+          dataFile.print(time); dataFile.print("\t");
+          dataFile.print(scaledLat,6); dataFile.print("\t");
+          dataFile.print(scaledLon,6); dataFile.print("\t");
+          dataFile.println(alt);
+          dataFile.close();
+         }
       }
     }
-    delay(40);
+    
+    // The following delay should be 10/BaudRate to allow time
+    // for the next character to be ready so it stays in this loop
+    // until the NMEA messages have a chance to be fully received.
+    delay(2);
+  }
+  
+  // Uncomment following line for loop time report.
+  //Serial.print("loop:");Serial.println( millis() - loopStart );
 }
 
 double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lon2)
@@ -274,18 +282,19 @@ void cutdown()
 {
   //wake up the xbee
   digitalWrite(XBEE_SLEEP, LOW); delay(1);
-  //send 10 'c's, with a delay of 20ms between them
-  for (int i = 0; i < 10; i++)
+  
+  //Send 175 'C's with 20ms between them for > 3.5sec
+  for (int i = 0; i < 175; i++)
   {
     Serial.print('C');
-    Serial.flush();
     delay(20);
   }
+  Serial.println("");
+  Serial.flush();
   
   //put the xbee back to sleep
   digitalWrite(XBEE_SLEEP, HIGH); delay(1);
 }
-
 double deg2rad(double degree)
 {
   return degree * (PI/180.0);
