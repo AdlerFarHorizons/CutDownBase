@@ -84,37 +84,33 @@ void setup()
   if (!SD.begin(chipSelectSD))
   {
     Serial.println("");
-    Serial.println( "Base: SD Card failed, or not present" );
-    Serial.println( "Base: No logging will be done." );
+    Serial.println( "Base: SD failed, no logging" );
     Serial.println( "" );
     isLogging = false;
   } else
   {
-    Serial.println( "Base: SD Card initialized" );
+    Serial.println( "Base: SD initialized" );
     // Check if dataFile can be created/opened and write header
     File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
     if (dataFile)
     {
-      dataFile.println("");
-      dataFile.println("");
-      dataFile.println("Cut Down Base Data Log");
-      dataFile.println("");
-      Serial.println("");
-      Serial.println("Base: File opened, logging enabled.");
-      Serial.println("");
+      Serial.println("Base: File open, log enabled.");
+      Serial.println("millis\tt(ms)\t\tlat\t\tlon\t\talt(m)\tRAM");
       isLogging = true;
-      dataFile.print("Max Flight Time (min): "); dataFile.println(flightTime);
-      dataFile.print("Current Time (ms): "); dataFile.println(startTime);
-      dataFile.print("Cutdown at (ms): "); dataFile.println(endTime);
-      dataFile.print("Cutdown at (altitude [m]): "); dataFile.println(maxAltitude);
-      dataFile.print("Cutdown at (altitude [ft]): "); dataFile.println(maxAltitude*3.2804); //convert to feet
-      dataFile.print("Cutdown at "); dataFile.print(maxRadius); dataFile.print(" mi from "); dataFile.print(center_lat); dataFile.print(", "); dataFile.println(center_lon);
+      dataFile.println("");
+      dataFile.println("");
+      dataFile.println("Cut Down Base Log");
+      dataFile.println("");
+      dataFile.print("Max(min):"); dataFile.println(flightTime);
+      dataFile.print("Start(ms):"); dataFile.println(startTime);
+      dataFile.print("End(ms):"); dataFile.println(endTime);
+      dataFile.print("Alt(ft):"); dataFile.println(maxAltitude*3.2804); //convert to feet
+      dataFile.print("Range(mi):"); dataFile.print(maxRadius); dataFile.print(" from:"); dataFile.print(center_lat,6); dataFile.print(","); dataFile.println(center_lon,6);
+      dataFile.println("millis\tt(ms)\t\tlat\t\tlon\t\talt(m)");
       dataFile.close();
     } else
     {
-      Serial.println("");
-      Serial.println( "Base: Can't open log file, logging disabled." );
-      Serial.println( "" );
+      Serial.println( "Base: No File. Log disabled." );
       isLogging = false;
     } 
   }
@@ -144,13 +140,11 @@ void waitForTimeStart()
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000);
         timeReceived = true;
-        Serial.println("Timer started");
-        Serial.print("Max Flight Time (min): "); Serial.println(flightTime);
-        Serial.print("Current Time (ms): "); Serial.println(startTime);
-        Serial.print("Cutdown at (ms): "); Serial.println(endTime);
-        Serial.print("Cutdown at (altitude [m]): "); Serial.println(maxAltitude);
-        Serial.print("Cutdown at (altitude [ft]): "); Serial.println(maxAltitude*3.2804); //convert to feet
-        Serial.print("Cutdown at "); Serial.print(maxRadius); Serial.print(" mi from "); Serial.print(center_lat); Serial.print(", "); Serial.println(center_lon);
+        Serial.print("Max(min):"); Serial.println(flightTime);
+        Serial.print("Start(ms):"); Serial.println(startTime);
+        Serial.print("End(ms):"); Serial.println(endTime);
+        Serial.print("Alt(ft): "); Serial.println(maxAltitude*3.2804); //convert to feet
+        Serial.print("Range(mi):"); Serial.print(maxRadius); Serial.print(" from:"); Serial.print(center_lat); Serial.print(","); Serial.println(center_lon);
         Serial.flush();
         digitalWrite(XBEE_SLEEP, HIGH);
       }
@@ -186,6 +180,8 @@ void loop()
   
         //get data from the gps object
         long alt = gps.altitude()/100; //altitude() returns in centimeters. all of the conversions were previously done in meters. dividing by 100 converts cm's to m's.
+        // Uncomment to give simulated altitude.
+        //alt = 300 + ( 6*(millis()-startTime) )/1000;
         long lat, lon;
         gps.get_position(&lat, &lon);
         double scaledLat = lat / pow(10,6); //divide by 10^6
@@ -198,9 +194,10 @@ void loop()
         delay(1);
         Serial.print(millis()); Serial.print("\t");
         Serial.print(time); Serial.print("\t");
-        Serial.print(scaledLat); Serial.print("\t");
-        Serial.print(scaledLon); Serial.print("\t");
-        Serial.println(alt);
+        Serial.print(scaledLat,6); Serial.print("\t");
+        Serial.print(scaledLon,6); Serial.print("\t");
+        Serial.print(alt);Serial.print("\t");
+        Serial.println(freeRam());
         Serial.flush();
         if ( isLogging )
         {
@@ -210,8 +207,8 @@ void loop()
           {
             dataFile.print(millis()); dataFile.print("\t");
             dataFile.print(time); dataFile.print("\t");
-            dataFile.print(scaledLat); dataFile.print("\t");
-            dataFile.print(scaledLon); dataFile.print("\t");
+            dataFile.print(scaledLat,6); dataFile.print("\t");
+            dataFile.print(scaledLon,6); dataFile.print("\t");
             dataFile.println(alt);
             dataFile.close();
            }
@@ -229,7 +226,7 @@ void loop()
             }
             isAltCutdown = true; //run only once
           }
-          cutdown();
+          //cutdown(); Suppressed for now
         }
         double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);
         
@@ -245,7 +242,7 @@ void loop()
             }
             isRangeCutdown = true; //run only once
           }
-          cutdown(); // Actual cutdown by altitude is suppressed for now.
+          //cutdown(); // Actual cutdown by altitude is suppressed for now.
         }
         //put the xbee back to sleep
         digitalWrite(XBEE_SLEEP, HIGH); delay(1); 
