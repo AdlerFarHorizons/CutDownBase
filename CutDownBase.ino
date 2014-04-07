@@ -95,7 +95,7 @@ void setup()
     if (dataFile)
     {
       Serial.println("Base: File open, log enabled.");
-      Serial.println("millis\tt(ms)\t\tlat\t\tlon\t\talt(m)\tRAM");
+      Serial.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tRAM");
       isLogging = true;
       dataFile.println("");
       dataFile.println("");
@@ -106,7 +106,7 @@ void setup()
       dataFile.print("End(ms):"); dataFile.println(endTime);
       dataFile.print("Alt(ft):"); dataFile.println(maxAltitude*3.2804); //convert to feet
       dataFile.print("Range(mi):"); dataFile.print(maxRadius); dataFile.print(" from:"); dataFile.print(center_lat,6); dataFile.print(","); dataFile.println(center_lon,6);
-      dataFile.println("millis\tt(ms)\t\tlat\t\tlon\t\talt(m)");
+      dataFile.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)");
       dataFile.close();
     } else
     {
@@ -163,7 +163,7 @@ void loop()
       File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
       {
-        dataFile.print( millis() ); dataFile.println("*** Remote Cutdown at time initiated ***");
+        dataFile.print( millis() ); dataFile.println(" *** Time cutdown ***");
         dataFile.close();
       }
       isTimeCutdown = true; // Run only once
@@ -193,6 +193,7 @@ void loop()
         //Serial.print(alt); Serial.print("\t");
         delay(1);
         Serial.print(millis()); Serial.print("\t");
+        Serial.print(date); Serial.print("\t");
         Serial.print(time); Serial.print("\t");
         Serial.print(scaledLat,6); Serial.print("\t");
         Serial.print(scaledLon,6); Serial.print("\t");
@@ -206,6 +207,7 @@ void loop()
           if (dataFile)
           {
             dataFile.print(millis()); dataFile.print("\t");
+            dataFile.print(date); dataFile.print("\t");
             dataFile.print(time); dataFile.print("\t");
             dataFile.print(scaledLat,6); dataFile.print("\t");
             dataFile.print(scaledLon,6); dataFile.print("\t");
@@ -221,7 +223,7 @@ void loop()
             File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
             if (dataFile)
             {
-              dataFile.print( millis() ); dataFile.println("*** Remote cutdown at altitude initiated ***");
+              dataFile.print( millis() ); dataFile.println(" *** Altitude cutdown ***");
               dataFile.close();
             }
             isAltCutdown = true; //run only once
@@ -237,7 +239,7 @@ void loop()
             File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
             if (dataFile)
             {
-              dataFile.print( millis() ); dataFile.println("*** Remote cutdown at range initiated ***");
+              dataFile.print( millis() ); dataFile.println(" *** Range cutdown ***");
               dataFile.close();
             }
             isRangeCutdown = true; //run only once
