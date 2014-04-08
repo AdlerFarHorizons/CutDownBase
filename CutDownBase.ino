@@ -83,7 +83,7 @@ void setup()
   nss.flush();
   pinMode( 10, OUTPUT );
   pinMode(XBEE_SLEEP, OUTPUT);
-  digitalWrite(XBEE_SLEEP, LOW); delay(1);  
+  digitalWrite(XBEE_SLEEP, LOW); delay(10);  
   
   waitForTimeStart();
   
@@ -123,7 +123,7 @@ void setup()
   }
 
   //send xbee to sleep and move to loop function
-  digitalWrite(XBEE_SLEEP, HIGH); delay(1); 
+  digitalWrite(XBEE_SLEEP, HIGH); delay(10); 
   
 }
 
@@ -147,13 +147,13 @@ void waitForTimeStart()
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000);
         timeReceived = true;
-        Serial.print("Max(min):"); Serial.println(flightTime);
+        // The following only print when testing through USB
+        Serial.print("\nMax(min):"); Serial.println(flightTime);
         Serial.print("Start(ms):"); Serial.println(startTime);
         Serial.print("End(ms):"); Serial.println(endTime);
         Serial.print("Alt(ft): "); Serial.println(maxAltitude*3.2804); //convert to feet
         Serial.print("Range(mi):"); Serial.print(maxRadius); Serial.print(" from:"); Serial.print(center_lat); Serial.print(","); Serial.println(center_lon);
         Serial.flush();
-        digitalWrite(XBEE_SLEEP, HIGH);
       }
     }
     delay(1);
@@ -229,7 +229,6 @@ void loop()
       gpsValid = age < 500;
       
       //print all of the data, tab delimited
-      delay(1);
       Serial.print(millis()); Serial.print("\t");
       Serial.print(date); Serial.print("\t");
       Serial.print(time); Serial.print("\t");
@@ -238,7 +237,6 @@ void loop()
       Serial.print(alt);Serial.print("\t");
       Serial.println(freeRam());
       Serial.flush();
-      
       // Log data to file if enabled and GPS is valid
       if ( isLogging && gpsValid )
       {
@@ -284,7 +282,7 @@ double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lo
 void cutdown()
 {
   //wake up the xbee
-  digitalWrite(XBEE_SLEEP, LOW); delay(1);
+  digitalWrite(XBEE_SLEEP, LOW); delay(20);
   
   //Send 175 'C's with 20ms between them for > 3.5sec
   for (int i = 0; i < 175; i++)
