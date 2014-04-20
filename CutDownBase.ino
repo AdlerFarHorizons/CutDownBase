@@ -102,7 +102,6 @@ void setup()
     if (dataFile)
     {
       Serial.println("Base: File open, log enabled.");
-      Serial.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tRAM");
       isLogging = true;
       dataFile.println("");
       dataFile.println("");
@@ -148,6 +147,7 @@ void waitForTimeStart()
         endTime = startTime + (cutPercent*flightTime*60*1000);
         timeReceived = true;
         // The following only print when testing through USB
+        Serial.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tRAM");
         Serial.print("\nMax(min):"); Serial.println(flightTime);
         Serial.print("Start(ms):"); Serial.println(startTime);
         Serial.print("End(ms):"); Serial.println(endTime);
@@ -229,6 +229,8 @@ void loop()
       gpsValid = age < 500;
       
       //print all of the data, tab delimited
+      //Uncomment for remote terminal GPS output
+      //digitalWrite(XBEE_SLEEP, LOW); delay(20);  
       Serial.print(millis()); Serial.print("\t");
       Serial.print(date); Serial.print("\t");
       Serial.print(time); Serial.print("\t");
@@ -237,6 +239,8 @@ void loop()
       Serial.print(alt);Serial.print("\t");
       Serial.println(freeRam());
       Serial.flush();
+      //Uncomment for remote terminal GPS output
+      //digitalWrite(XBEE_SLEEP, HIGH);
       // Log data to file if enabled and GPS is valid
       if ( isLogging && gpsValid )
       {
