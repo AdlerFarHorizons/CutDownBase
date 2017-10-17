@@ -60,7 +60,7 @@
 #define LOG_FILE_NAME "baselog.txt"
 const int chipSelectSD = 4;
 const float timeFactor = 54.7925 / 54.0; // Tested: Actual Min / Programmed Min
-boolean isLogging;
+boolean isLogging, launchLocValid;
 File dataFile;
 
 TinyGPS gps;
@@ -157,8 +157,8 @@ void waitForTimeStart()
         maxAltitude = Serial.parseFloat();
         maxAltitude /= 3.2804; //convert to meters
         maxRadius = Serial.parseFloat();
-        center_lat = Serial.parseFloat();
-        center_lon = Serial.parseFloat();
+        //center_lat = Serial.parseFloat();
+        //center_lon = Serial.parseFloat();
         
         startTime = millis();
         endTime = startTime + (cutPercent*flightTime*60*1000) / timeFactor;
@@ -242,7 +242,16 @@ void loop()
       scaledLon = lon / pow(10,6); //divide by 10^6
       gps.get_datetime(&date, &time, &age);
       gpsValid = age < 500;
-      distance = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
+      if ( !launchLocValid && gpsValid ) {
+        center_lat = scaledLat;
+        center_lon = scaledLon;
+        launchLocValid = true;
+      }
+      if (launchLocValid ) {
+        distance = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
+      } else {
+        distance = 0.0;
+      }
       
       //print all of the data, tab delimited
       //Uncomment for remote terminal GPS output
