@@ -1,3 +1,9 @@
+/*
+ * Cutdown Base Module - optional module to control remote cutdown module from payload
+ * based on GPS position rather than only time.
+ * 
+*/
+
 #include <SoftwareSerial.h>
 #include <math.h>
 #include "TinyGPS.h"
@@ -47,16 +53,23 @@
 #define XBEE_SLEEP 7
 #define GPS_RX 5 //3 
 #define GPS_TX 6 //4
+#define GPS_LED 8
+#define ALIVE_LED 9
+#define LED_FLASH_TIME 10
+
 #define LOG_FILE_NAME "baselog.txt"
 const int chipSelectSD = 4;
+const float timeFactor = 54.7925 / 54.0; // Tested: Actual Min / Programmed Min
 boolean isLogging;
+File dataFile;
 
 TinyGPS gps;
 SoftwareSerial nss(GPS_TX, GPS_RX); // nss(Arduino Rx, Arduino Tx) = nss(GPS Tx, GPS Rx)
 unsigned long startTime;
 unsigned long endTime;
+unsigned long ledOffTime;
 int flightTime;
-double cutPercent = 0.9; //The percent of the flight that can go by before the BaseModule is
+const double cutPercent = 1.0; //The percent of the flight that can go by before the BaseModule is
                       //authorized to cut the balloon.
 double maxAltitude = 0;
 double maxRadius = 0;
@@ -73,17 +86,20 @@ long alt, lat, lon;
 double scaledLat, scaledLon;
 unsigned long date, time, age;
 unsigned long loopStart;
+double distance;
 
 void setup()
 {
+  pinMode( ALIVE_LED, OUTPUT );
+  pinMode( GPS_LED, OUTPUT );
+  pinMode(XBEE_SLEEP, OUTPUT);
+  digitalWrite(XBEE_SLEEP, LOW); delay(10);  
   Serial.begin(9600);
-  Serial.println(freeRam());
+  Serial.println( "Cutdown Base Unit is online.\n" );
   Serial.flush();
   nss.begin(4800);
   nss.flush();
   pinMode( 10, OUTPUT );
-  pinMode(XBEE_SLEEP, OUTPUT);
-  digitalWrite(XBEE_SLEEP, LOW); delay(10);  
   
   waitForTimeStart();
   
@@ -98,10 +114,11 @@ void setup()
   {
     Serial.println( "Base: SD initialized" );
     // Check if dataFile can be created/opened and write header
-    File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
+    dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
     if (dataFile)
     {
       Serial.println("Base: File open, log enabled.");
+      Serial.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tdist(mi)");
       isLogging = true;
       dataFile.println("");
       dataFile.println("");
@@ -112,8 +129,8 @@ void setup()
       dataFile.print("End(ms):"); dataFile.println(endTime);
       dataFile.print("Alt(ft):"); dataFile.println(maxAltitude*3.2804); //convert to feet
       dataFile.print("Range(mi):"); dataFile.print(maxRadius); dataFile.print(" from:"); dataFile.print(center_lat,6); dataFile.print(","); dataFile.println(center_lon,6);
-      dataFile.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)");
-      dataFile.close();
+      dataFile.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tdist(mi)");
+      dataFile.flush();
     } else
     {
       Serial.println( "Base: No File. Log disabled." );
@@ -122,7 +139,7 @@ void setup()
   }
 
   //send xbee to sleep and move to loop function
-  digitalWrite(XBEE_SLEEP, HIGH); delay(10); 
+  delay( 10 );digitalWrite(XBEE_SLEEP, HIGH); 
   
 }
 
@@ -144,16 +161,18 @@ void waitForTimeStart()
         center_lon = Serial.parseFloat();
         
         startTime = millis();
-        endTime = startTime + (cutPercent*flightTime*60*1000);
+        endTime = startTime + (cutPercent*flightTime*60*1000) / timeFactor;
         timeReceived = true;
-        // The following only print when testing through USB
-        Serial.println("ms\tddmmyy\thhmmss..\tlat\t\tlon\t\talt(m)\tRAM");
+
+        digitalWrite(XBEE_SLEEP, LOW );delay(10);
+        Serial.println( "Base Unit received the following parameters:");
         Serial.print("\nMax(min):"); Serial.println(flightTime);
         Serial.print("Start(ms):"); Serial.println(startTime);
         Serial.print("End(ms):"); Serial.println(endTime);
         Serial.print("Alt(ft): "); Serial.println(maxAltitude*3.2804); //convert to feet
         Serial.print("Range(mi):"); Serial.print(maxRadius); Serial.print(" from:"); Serial.print(center_lat); Serial.print(","); Serial.println(center_lon);
         Serial.flush();
+        delay(10);digitalWrite( XBEE_SLEEP, HIGH );
       }
     }
     delay(1);
@@ -169,11 +188,10 @@ void loop()
   { 
     if (!isTimeCutdown && isLogging) //if logging is enabled, log some stuff
     {
-      File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if ( dataFile )
       {
         dataFile.print( millis() ); dataFile.println(" *** Time cutdown ***");
-        dataFile.close();
+        dataFile.flush();
       }
       cutdown();
       isTimeCutdown = true; // Run only once
@@ -185,27 +203,24 @@ void loop()
   {
     if (!isAltCutdown && isLogging)
     {
-      File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if (dataFile)
       {
         dataFile.print( millis() ); dataFile.println(" *** Altitude cutdown ***");
-        dataFile.close();
+        dataFile.flush();
       }
       cutdown(); //Suppressed for now
       isAltCutdown = true; //run only once
     }
   }
   
-  double d = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
-  if ( gpsValid && ( d > maxRadius ) )
+  if ( gpsValid && ( distance > maxRadius ) )
   {
     if (!isRangeCutdown && isLogging)
     {
-      File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
       if (dataFile)
       {
         dataFile.print( millis() ); dataFile.println(" *** Range cutdown ***");
-        dataFile.close();
+        dataFile.flush();
       }
       cutdown(); // Actual cutdown by altitude is suppressed for now.
       isRangeCutdown = true; //run only once
@@ -227,24 +242,24 @@ void loop()
       scaledLon = lon / pow(10,6); //divide by 10^6
       gps.get_datetime(&date, &time, &age);
       gpsValid = age < 500;
+      distance = distanceBetweenTwoPoints(scaledLat, scaledLon, center_lat, center_lon);  
       
       //print all of the data, tab delimited
       //Uncomment for remote terminal GPS output
-      //digitalWrite(XBEE_SLEEP, LOW); delay(20);  
+      digitalWrite(XBEE_SLEEP, LOW); delay(10);  
       Serial.print(millis()); Serial.print("\t");
       Serial.print(date); Serial.print("\t");
       Serial.print(time); Serial.print("\t");
       Serial.print(scaledLat,6); Serial.print("\t");
       Serial.print(scaledLon,6); Serial.print("\t");
       Serial.print(alt);Serial.print("\t");
-      Serial.println(freeRam());
+      Serial.println(distance);
       Serial.flush();
       //Uncomment for remote terminal GPS output
-      //digitalWrite(XBEE_SLEEP, HIGH);
+      delay(10);digitalWrite(XBEE_SLEEP, HIGH);
       // Log data to file if enabled and GPS is valid
       if ( isLogging && gpsValid )
       {
-        File dataFile = SD.open(LOG_FILE_NAME, FILE_WRITE);
         
         if (dataFile)
         {
@@ -253,8 +268,9 @@ void loop()
           dataFile.print(time); dataFile.print("\t");
           dataFile.print(scaledLat,6); dataFile.print("\t");
           dataFile.print(scaledLon,6); dataFile.print("\t");
-          dataFile.println(alt);
-          dataFile.close();
+          dataFile.print(alt); dataFile.print("\t");
+          dataFile.println(distance);
+          dataFile.flush();
          }
       }
     }
@@ -267,6 +283,18 @@ void loop()
   
   // Uncomment following line for loop time report.
   //Serial.print("loop:");Serial.println( millis() - loopStart );
+  ledFlash( ALIVE_LED, 20 );
+  if ( gpsValid ) {
+    digitalWrite( GPS_LED, HIGH );
+    ledOffTime = millis() + 11000;
+  }
+  if ( millis() > ledOffTime ) digitalWrite( GPS_LED, LOW );
+}
+
+void ledFlash( int led, int length ) {
+  digitalWrite( led, HIGH );
+  delay( length );
+  digitalWrite( led, LOW );
 }
 
 double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lon2)
@@ -285,8 +313,8 @@ double distanceBetweenTwoPoints(double lat1, double lon1, double lat2, double lo
 
 void cutdown()
 {
-  //wake up the xbee
-  digitalWrite(XBEE_SLEEP, LOW); delay(20);
+  // Wake up XBEE
+  digitalWrite(XBEE_SLEEP, LOW); delay(10);
   
   //Send 175 'C's with 20ms between them for > 3.5sec
   for (int i = 0; i < 175; i++)
@@ -298,7 +326,7 @@ void cutdown()
   Serial.flush();
   
   //put the xbee back to sleep
-  digitalWrite(XBEE_SLEEP, HIGH); delay(1);
+  delay(10);digitalWrite(XBEE_SLEEP, HIGH); delay(1);
 }
 double deg2rad(double degree)
 {
